@@ -1,4 +1,3 @@
-# storefront
 on crée un dossier dans notre arboressence et on se place dedans.
 on lance la commande :
 pip install pipenv : installe les dépendances de notre application dans un environnement virtuel
@@ -408,36 +407,110 @@ ce qu'on veut.
 ==> la solution est d'invoquer les tables en relation avec cette dernière.
 queryset = Product.objects.select_related('collection').all()
 
+# on utilise select_related (1) quand on a une seule relation comme product - collection
+# on utilise prefetch_related (n) quand on a plusieurs relations comme product - promotions
+
 autre exemple si la table contient une relation one to many (product - promotion)
 queryset = Product.objects.prefetch_related('promotions').all()
---> une requète pour lire tous les colonnes de la table produit (jointure entre
+--> une requète pour lire toutes les colonnes de la table produit (jointure entre
 les deux table produit et promotions).
 --> une autre requête pour lire les promotions selon chaque prduit
-
+ 
 autre exemple:
 on veut charger tous les produits avec leurs promotions et collections.
 
 Product.objects.prefetch_related('promotions').select_related('collection').all()
-l'ordre n'a pas d'importance
+l'ordre n'a pas d'importance.
 
 exercice =
-Get the last 5 orders with their customer and items (incl product)
+Get the last 5 orders with their customer and items (including product)
+solution : 
+On veut avoir la liste des ordres, donc on commence par la classe Ordre.
+queryset = Order.objects.select_related('customer').order_by('-placed_at')[:5]
+
+    return render(request, 'hello.html', {'name': 'Amine', 'orders': list(queryset)})
+
+et la hello.html
+{% for order in orders %}
+      <li>{{ order.id }} --- {{ order.customer.first_name }}</li>
+      {% endfor %}
+
+==> Maintenant on va charger la liste des items of this orders, la queryset devient :
+queryset = Order.objects.select_related('customer').prefetch-related('').order_by('-placed_at')[:5]
+
+voyons voir le de prefetch-related('?? items_name ??') : on a dans la classe OrderItem un attribut order
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.PROTECT)
+Django va créer la relation inverse entre Order et OrderItem, on peut la renommer
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='items')
+mais si on renomme une on doit renommer tous les autres relations DONC il vaut mieux garder le méme nom
+choisi par django et qui est par défaut qui sera orderitem_set.
+
+la nouvelle requete sera donc :
+queryset = Order.objects.select_related('customer').prefetch-related('orderitem_set__product').order_by('-placed_at')[:5]
+
+==> prefetch-related('orderitem_set__product') : le champ à afficher depuis la clé étrangère
+
+
+
+===================================================================
+			Aggregating Objects
+===================================================================
+des fois on veut calculer le max ou l'average price (moyenne) des produits.
+==> on utilise l'aggregate method
+==> retourne un dictionnaire et non pas un queryset
+exemples:
+reuslt = Product.objects.aggregate(Count('description'))
+-> compter le nombre de produits qui ont une description.
+reuslt = Product.objects.aggregate(Count('id'))
+-> compter le nombre de tous les produits
+le résultat est un dictionnaire nommé 'count__id'= 1000
+pour changer ce nom il suffit de mettre:
+result = Product.objects.aggregate(count=Count('id'))
+-> calculer le prix minimum d'un produit
+result = Product.objects.aggregate(
+        count=Count('id'), min_price=Min('unit_price'))
+
+==+=> depuis que aggregate est une méthode de queryset on peut lui appliquer 
+d'autres méthodes du queryset telque:
+result = Product.objects.filter(collection__id=1).aggregate(
+        count=Count('id'), min_price=Min('unit_price'))
+
+    return render(request, 'hello.html', {'name': 'Amine', 'result': result}) 
+
+Exercices :
+
+How many orders do we have ?
+result = Order.objects.aggregate(count = Count('id'))
+
+How many units of product 1 have we sold ?
+result = OrderItem.objects
+		.filter(product__id=1)
+		.aggregate(units_sold=Sum('quantity'))
+
+How many orders has customer 1 placed ?
+result = Order.objects
+		.filter(customer__id=1)
+		.aggregate(count=Count('id'))
+
+what is the min, max, and avg price of products in collection 1?
+result = Product.objects
+		.filter(collection__id=3)
+		.aggregate(
+			min_price = Min('unit_price'),
+			avg_price = Avg('unit_price'),
+			max_price = Max('unit_price'),
+		)
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+===================================================================
+			Annotation Objects
+===================================================================
+Sometimes we want to add additional attributes to our Objects while
+quering them.
+==> we use annotate method
 
 
 
