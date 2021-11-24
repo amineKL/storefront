@@ -1,12 +1,11 @@
+from django.db.models.expressions import Value, F
 from django.shortcuts import render
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
-from django.db.models.aggregates import Count, Max, Min, Avg, Sum
-from store.models import Collection, Product
+from store.models import Customer
 
 
 def say_hello(request):
-    result = Product.objects.filter(collection__id=1).aggregate(
-        count=Count('id'), min_price=Min('unit_price'))
+    queryset = Customer.objects.annotate(is_new=Value(True))
 
-    return render(request, 'hello.html', {'name': 'Amine', 'result': result})
+    return render(request, 'hello.html', {'name': 'Amine', 'result': list(queryset)})
